@@ -1,0 +1,38 @@
+# Fly.io config for Taleshift ASR / FastAPI server.
+# Deploy: fly launch (first time) or fly deploy
+# Secrets: fly secrets set SUPABASE_URL=... SUPABASE_KEY=... ALLOWED_ORIGINS=...
+
+app = "taleshift-server"
+primary_region = "iad"
+
+[build]
+
+[env]
+  # Non-secret defaults. Override with `fly secrets` / dashboard for production.
+  TALESHIFT_ASR_MODEL_ID = "dsfsi-anv/whisper-large-v3-turbo-anv-zul"
+  TALESHIFT_AUDIO_BUCKET = "session-audio"
+  HF_HOME = "/data/huggingface"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "120s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "performance-2x"
+  memory = "8gb"
+  cpus = 2
+
+[mounts]
+  source = "hf_cache"
+  destination = "/data/huggingface"

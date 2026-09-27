@@ -1,0 +1,13 @@
+tests/
+__pycache__/
+**/__pycache__/
+.env*
+.venv/
+.git/
+.idea/
+.cursor/
+*.pyc
+*.pyo
+*.wav
+audio_path/
+README.md

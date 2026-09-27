@@ -6,9 +6,12 @@ To swap models, change MODEL_ID (or set the TALESHIFT_ASR_MODEL_ID
 env var) — nothing else in this file needs to change.
 """
 
+from __future__ import annotations
+
 import os
 import tempfile
 from functools import lru_cache
+from typing import Any
 
 from transformers import pipeline
 
@@ -25,9 +28,13 @@ AUDIO_BUCKET = os.getenv("TALESHIFT_AUDIO_BUCKET", "session-audio")
 
 
 @lru_cache(maxsize=1)
-def _get_pipeline():
-    """Load the model once per process, reuse on every call."""
+def get_asr_pipeline():
+    """Load the Whisper ASR model once per process; shared by all callers."""
     return pipeline("automatic-speech-recognition", model=MODEL_ID)
+
+
+# Backwards-compatible alias used by older call sites.
+_get_pipeline = get_asr_pipeline
 
 
 def _fetch_audio_path(session_id: str) -> str:
@@ -60,6 +67,53 @@ def _fetch_audio_path(session_id: str) -> str:
     return tmp.name
 
 
+def _words_from_pipeline_result(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Map Whisper pipeline chunks to the shared TranscriptResult word shape.
+
+    Limitation: the Hugging Face Whisper ASR pipeline does not expose a real
+    per-word confidence score, so ``confidence`` is always the placeholder 1.0.
+    """
+    words: list[dict[str, Any]] = []
+    for chunk in result.get("chunks") or []:
+        text = (chunk.get("text") or "").strip()
+        if not text:
+            continue
+        timestamp = chunk.get("timestamp") or (None, None)
+        start_s, end_s = timestamp[0], timestamp[1]
+        start_ms = int(round((start_s or 0.0) * 1000))
+        end_ms = int(round((end_s if end_s is not None else (start_s or 0.0)) * 1000))
+        words.append(
+            {
+                "text": text,
+                "startMs": start_ms,
+                "endMs": end_ms,
+                "confidence": 1.0,
+            }
+        )
+    return words
+
+
+def transcribe_audio_file(audio_path: str) -> dict[str, Any]:
+    """
+    Run word-level ASR on a local audio file.
+
+    Returns dict keys: words, fullText, durationMs (no story/session ids).
+    """
+    asr = get_asr_pipeline()
+    result = asr(audio_path, return_timestamps="word")
+    words = _words_from_pipeline_result(result)
+    full_text = (result.get("text") or "").strip()
+    if not full_text and words:
+        full_text = " ".join(w["text"] for w in words)
+    duration_ms = max((w["endMs"] for w in words), default=0)
+    return {
+        "words": words,
+        "fullText": full_text,
+        "durationMs": duration_ms,
+    }
+
+
 def transcribe_session(session_id: str) -> str:
     """
     Fetch a session's audio from the DB/storage, transcribe it, and
@@ -68,7 +122,7 @@ def transcribe_session(session_id: str) -> str:
     """
     audio_path = _fetch_audio_path(session_id)
     try:
-        asr = _get_pipeline()
+        asr = get_asr_pipeline()
         result = asr(audio_path, return_timestamps=True)
         return result["text"]
     finally:

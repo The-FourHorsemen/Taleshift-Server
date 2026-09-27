@@ -1,0 +1,25 @@
+# CPU-only PyTorch — must stay above other deps so pip resolves torch from this index.
+# Without this line, `pip install torch` pulls the multi-GB CUDA build from PyPI.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Web API
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.32,<1.0
+python-multipart>=0.0.9,<1.0
+
+# Config / validation
+pydantic>=2.0,<3.0
+pydantic-settings>=2.0,<3.0
+python-dotenv>=1.0,<2.0
+
+# ASR (Whisper via transformers pipeline)
+torch>=2.2,<3.0
+transformers>=4.40,<6.0
+numpy>=1.26,<3.0
+
+# Supabase (transcribe_session + Storage)
+supabase>=2.0,<3.0
+
+# Tests
+pytest>=8.0,<10.0
+httpx>=0.27,<1.0
