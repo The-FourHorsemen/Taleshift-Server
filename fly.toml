@@ -1,38 +1,40 @@
-# Fly.io config for Taleshift ASR / FastAPI server.
-# Deploy: fly launch (first time) or fly deploy
-# Secrets: fly secrets set SUPABASE_URL=... SUPABASE_KEY=... ALLOWED_ORIGINS=...
+# fly.toml app configuration file generated for taleshift-server on 2026-09-27T05:19:47Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "taleshift-server"
-primary_region = "iad"
+app = 'taleshift-server'
+primary_region = 'ams'
 
 [build]
 
 [env]
-  # Non-secret defaults. Override with `fly secrets` / dashboard for production.
-  TALESHIFT_ASR_MODEL_ID = "dsfsi-anv/whisper-large-v3-turbo-anv-zul"
-  TALESHIFT_AUDIO_BUCKET = "session-audio"
-  HF_HOME = "/data/huggingface"
+  HF_HOME = '/data/huggingface'
+  TALESHIFT_ASR_MODEL_ID = 'dsfsi-anv/whisper-large-v3-turbo-anv-zul'
+  TALESHIFT_AUDIO_BUCKET = 'session-audio'
+
+[[mounts]]
+  source = 'hf_cache'
+  destination = '/data/huggingface'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
+  processes = ['app']
 
   [[http_service.checks]]
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "120s"
-    method = "GET"
-    path = "/health"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '2m0s'
+    method = 'GET'
+    path = '/health'
 
 [[vm]]
-  size = "performance-2x"
-  memory = "8gb"
+  size = 'performance-2x'
+  memory = '8gb'
+  cpu_kind = 'performance'
   cpus = 2
-
-[mounts]
-  source = "hf_cache"
-  destination = "/data/huggingface"
+  memory_mb = 256
